@@ -1,37 +1,54 @@
 version: '3'
 
-# vars:
-#   ssm_passphrase_key: /keys/default
-#   aws_profile: default
-#   aws_region: eu-west-1
-#   files:
-#     - somefile.txt
+vars:
+  ssm_passphrase_key: /keys/default
+  aws_profile: default
+  aws_region: eu-west-1
+  files:
+    - somefile.txt
 
 tasks:
-  clear-key:
+  pull-images:
     silent: true
-    cmds:
-      - [ -f .task/ssm-key ] && rm .task/ssm-key
-  download-key:
-    silent: true
+    internal: true
     cmds:
       - |2
-        [ ! -f .task/ssm-key ] && mkdir -p .task && \
+        if ! docker image inspect amazon/aws-cli > /dev/null 2>&1; then
+          docker pull amazon/aws-cli > /dev/null 2>&1
+        fi
+        if ! docker image inspect vladgh/gpg > /dev/null 2>&1; then
+          docker pull vladgh/gpg > /dev/null 2>&1
+        fi
+  clear-key:
+    silent: true
+    internal: true
+    cmds:
+      - rm .ssm-key
+  download-key:
+    silent: true
+    internal: true
+    deps: [pull-images]
+    cmds:
+      - |2
         docker run --rm -v ~/.aws:/root/.aws -e AWS_PROFILE="{{.aws_profile}}" \
         amazon/aws-cli ssm get-parameter \
         --region "{{.aws_region}}" \
         --name "/keys/default" \
         --query "Parameter.Value" \
-        --with-decryption | sed 's/^"//;s/"$//' > .task/ssm-key
+        --with-decryption | sed 's/^"//;s/"$//' > .ssm-key
   encrypt:
     silent: true
-    deps: [download-key]
+    deps: [pull-images]
     cmds:
+      - task: download-key
       - for: { var: files }
-        cmd: rm -f "{{.ITEM}}.encrypted" && docker run --rm -v $(pwd):/gpg vladgh/gpg --quiet --output "/gpg/{{.ITEM}}.encrypted" --symmetric -a --batch --passphrase-file /gpg/.task/ssm-key --cipher-algo AES256 "/gpg/{{.ITEM}}"
+        cmd: echo "Encrypting {{.ITEM}}..." && rm -f "{{.ITEM}}.encrypted" && docker run --rm -v $(pwd):/gpg vladgh/gpg --quiet --output "/gpg/{{.ITEM}}.encrypted" --symmetric -a --batch --passphrase-file /gpg/.ssm-key --cipher-algo AES256 "/gpg/{{.ITEM}}"
+      - task: clear-key
   decrypt:
     silent: true
-    deps: [download-key]
+    deps: [pull-images]
     cmds:
+      - task: download-key
       - for: { var: files }
-        cmd: rm -f "{{.ITEM}}" && docker run --rm -v $(pwd):/gpg vladgh/gpg --quiet --output "/gpg/{{.ITEM}}" -a --batch --passphrase-file /gpg/.task/ssm-key --decrypt "/gpg/{{.ITEM}}.encrypted"
+        cmd: echo "Decrypting {{.ITEM}}..." && rm -f "{{.ITEM}}" && docker run --rm -v $(pwd):/gpg vladgh/gpg --quiet --output "/gpg/{{.ITEM}}" -a --batch --passphrase-file /gpg/.ssm-key --decrypt "/gpg/{{.ITEM}}.encrypted"
+      - task: clear-key
