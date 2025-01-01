@@ -1,11 +1,11 @@
 version: '3'
 
-vars:
-  ssm_passphrase_key: /keys/default
-  aws_profile: default
-  aws_region: eu-west-1
-  files:
-    - somefile.txt
+# vars:
+#   ssm_passphrase_key: /keys/default
+#   aws_profile: default
+#   aws_region: eu-west-1
+#   files:
+#     - somefile.txt
 
 tasks:
   pull-images:
