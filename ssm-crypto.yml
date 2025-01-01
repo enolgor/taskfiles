@@ -1,0 +1,37 @@
+version: '3'
+
+# vars:
+#   ssm_passphrase_key: /keys/default
+#   aws_profile: default
+#   aws_region: eu-west-1
+#   files:
+#     - somefile.txt
+
+tasks:
+  clear-key:
+    silent: true
+    cmds:
+      - [ -f .task/ssm-key ] && rm .task/ssm-key
+  download-key:
+    silent: true
+    cmds:
+      - |2
+        [ ! -f .task/ssm-key ] && mkdir -p .task && \
+        docker run --rm -v ~/.aws:/root/.aws -e AWS_PROFILE="{{.aws_profile}}" \
+        amazon/aws-cli ssm get-parameter \
+        --region "{{.aws_region}}" \
+        --name "/keys/default" \
+        --query "Parameter.Value" \
+        --with-decryption | sed 's/^"//;s/"$//' > .task/ssm-key
+  encrypt:
+    silent: true
+    deps: [download-key]
+    cmds:
+      - for: { var: files }
+        cmd: rm -f "{{.ITEM}}.encrypted" && docker run --rm -v $(pwd):/gpg vladgh/gpg --quiet --output "/gpg/{{.ITEM}}.encrypted" --symmetric -a --batch --passphrase-file /gpg/.task/ssm-key --cipher-algo AES256 "/gpg/{{.ITEM}}"
+  decrypt:
+    silent: true
+    deps: [download-key]
+    cmds:
+      - for: { var: files }
+        cmd: rm -f "{{.ITEM}}" && docker run --rm -v $(pwd):/gpg vladgh/gpg --quiet --output "/gpg/{{.ITEM}}" -a --batch --passphrase-file /gpg/.task/ssm-key --decrypt "/gpg/{{.ITEM}}.encrypted"

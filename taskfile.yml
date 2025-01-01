@@ -1,11 +1,10 @@
 version: '3'
 
-vars:
-  ssm_passphrase_key: /keys/default
-  aws_profile: default
-  aws_region: eu-west-1
-  files:
-    - somefile.txt
-
 includes:
-  remote: https://raw.githubusercontent.com/enolgor/taskfiles/refs/heads/main/ssm-encrypt.yml
+  crypto: https://raw.githubusercontent.com/enolgor/taskfiles/refs/heads/main/ssm-crypto.yml
+  vars:
+    ssm_passphrase_key: /keys/default
+    aws_profile: default
+    aws_region: eu-west-1
+    files:
+      - somefile.txt
