@@ -20,9 +20,9 @@ tasks:
     silent: true
     cmds:
       - for: { var: files }
-        cmd: rm -f "{{.ITEM}}.encrypted" && docker run --rm -v $(pwd):/gpg vladgh/gpg --quiet --output "/gpg/{{.ITEM}}.encrypted" --symmetric -a --batch --passphrase "$(task key)" --cipher-algo AES256 "/gpg/{{.ITEM}}"
+        cmd: rm -f "{{.ITEM}}.encrypted" && docker run --rm -v $(pwd):/gpg vladgh/gpg --quiet --output "/gpg/{{.ITEM}}.encrypted" --symmetric -a --batch --passphrase "$(task remote:key)" --cipher-algo AES256 "/gpg/{{.ITEM}}"
   decrypt:
     silent: true
     cmds:
       - for: { var: files }
-        cmd: rm -f "{{.ITEM}}" && docker run --rm -v $(pwd):/gpg vladgh/gpg --quiet --output "/gpg/{{.ITEM}}" -a --batch --passphrase "$(task key)" --decrypt "/gpg/{{.ITEM}}.encrypted"
+        cmd: rm -f "{{.ITEM}}" && docker run --rm -v $(pwd):/gpg vladgh/gpg --quiet --output "/gpg/{{.ITEM}}" -a --batch --passphrase "$(task remote:key)" --decrypt "/gpg/{{.ITEM}}.encrypted"
